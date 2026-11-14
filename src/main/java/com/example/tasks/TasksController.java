@@ -18,6 +18,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.tasks.records.Task;
+import com.example.tasks.records.TaskCount;
+import com.example.tasks.records.TaskUpdateRequest;
+
 @RestController
 @RequestMapping("/tasks")
 public class TasksController {
@@ -34,6 +38,12 @@ public class TasksController {
             return tasksMemory.getAll();
         }
         return tasksMemory.getByDone(done);
+    }
+
+    @GetMapping("/count")
+    @ResponseStatus(value = HttpStatus.OK)
+    public TaskCount getCount() {
+        return tasksMemory.count();
     }
 
     @GetMapping("/{id}")

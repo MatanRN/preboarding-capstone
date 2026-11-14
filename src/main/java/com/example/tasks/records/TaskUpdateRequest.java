@@ -1,4 +1,4 @@
-package com.example.tasks;
+package com.example.tasks.records;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

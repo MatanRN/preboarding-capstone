@@ -25,6 +25,9 @@ import java.util.List;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
+import com.example.tasks.records.Task;
+import com.example.tasks.records.TaskCount;
+
 @WebMvcTest(TasksController.class)
 class TasksControllerTests {
 	String BASE_URL = "/tasks";
@@ -272,6 +275,29 @@ class TasksControllerTests {
 		void nonExistingTaskDoesNothing() throws Exception {
 			when(tasksMemory.remove(1)).thenReturn(null);
 			mock.perform(delete(url)).andExpect(status().isNoContent());
+		}
+	}
+
+	@Nested
+	class getCount {
+		String url = BASE_URL + "/count";
+
+		@Test
+		void returnsTotalAndDoneCounts() throws Exception {
+			when(tasksMemory.count()).thenReturn(new TaskCount(5, 2));
+			mock.perform(get(url)).andExpect(status().isOk())
+					.andExpect(jsonPath("$.total").value(5))
+					.andExpect(jsonPath("$.done").value(2));
+			verify(tasksMemory).count();
+		}
+
+		@Test
+		void returnsZeroCountsWhenNoTasks() throws Exception {
+			when(tasksMemory.count()).thenReturn(new TaskCount(0, 0));
+			mock.perform(get(url)).andExpect(status().isOk())
+					.andExpect(jsonPath("$.total").value(0))
+					.andExpect(jsonPath("$.done").value(0));
+			verify(tasksMemory).count();
 		}
 	}
 }
