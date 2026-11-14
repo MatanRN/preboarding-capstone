@@ -28,8 +28,28 @@ public class TasksMemory {
         return tasks;
     }
 
+    public ArrayList<Task> getByDone(boolean done){
+        ArrayList<Task> tasks = new ArrayList<>();
+        for(Task t: tasksMap.values()){
+            if(t.done() == done){
+                tasks.add(t);
+            }
+        }
+        return tasks;
+    }
+
     public Task add(Task t){
         return tasksMap.put(t.id(), t);
+    }
+
+    /**
+     * Replaces the task with the same id, only if one exists.
+     * Atomic: never creates a task.
+     *
+     * @return the previous task, or null if no task had that id
+     */
+    public Task update(Task t){
+        return tasksMap.replace(t.id(), t);
     }
 
     public Task remove(long id){
