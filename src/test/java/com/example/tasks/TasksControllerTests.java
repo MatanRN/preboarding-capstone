@@ -3,8 +3,6 @@ package com.example.tasks;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,6 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.example.tasks.records.Task;
 import com.example.tasks.records.TaskCount;
+import com.example.tasks.records.TaskCreateRequest;
 import com.example.tasks.records.TaskUpdateRequest;
 
 @WebMvcTest(TasksController.class)
@@ -182,29 +181,57 @@ class TasksControllerTests {
 
 	@Nested
 	class createTask {
+
 		@Test
-		void taskCorrectlyAddedToMemory() throws Exception {
-			mock.perform(post(BASE_URL).param("id", "1")
+		void validJsonCreatesTaskAndReturnsCreated() throws Exception {
+			when(tasksService.createTask(any(TaskCreateRequest.class))).thenReturn(dummyTask);
+			mock.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON)
+					.content("{\"title\":\"dummy\",\"done\":false}"))
+					.andExpect(status().isCreated())
+					.andExpect(jsonPath("$.id").value(dummyTask.id()))
+					.andExpect(jsonPath("$.title").value(dummyTask.title()))
+					.andExpect(jsonPath("$.done").value(dummyTask.done()));
+			verify(tasksService).createTask(new TaskCreateRequest("dummy", false));
+		}
+
+		@Test
+		void nullDoneValueSucceeds() throws Exception {
+			when(tasksService.createTask(any(TaskCreateRequest.class))).thenReturn(dummyTask);
+			mock.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON)
+					.content("{\"title\":\"dummy\"}"))
+					.andExpect(status().isCreated());
+			verify(tasksService).createTask(new TaskCreateRequest("dummy", null));
+		}
+
+		@Test
+		void missingTitleThrowsException() throws Exception {
+			mock.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON)
+					.content("{\"done\":false}")).andExpect(status().isBadRequest());
+			verify(tasksService, never()).createTask(any());
+		}
+
+		@Test
+		void blankTitleThrowsException() throws Exception {
+			mock.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON)
+					.content("{\"title\":\"   \",\"done\":false}")).andExpect(status().isBadRequest());
+			verify(tasksService, never()).createTask(any());
+		}
+
+		@Test
+		void serviceIllegalArgumentExceptionReturnsBadRequest() throws Exception {
+			when(tasksService.createTask(any(TaskCreateRequest.class)))
+					.thenThrow(new IllegalArgumentException("Task title parameter cannot be set to null or blank"));
+			mock.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON)
+					.content("{\"title\":\"dummy\"}")).andExpect(status().isBadRequest());
+		}
+
+		@Test
+		void formEncodedBodyReturnsUnsupportedMediaType() throws Exception {
+			mock.perform(post(BASE_URL).contentType(MediaType.APPLICATION_FORM_URLENCODED)
 					.param("title", "dummy")
-					.param("done", "false")).andExpect(status().isCreated());
-			verify(tasksService).createTask(1L, "dummy", false);
-		}
-
-		@Test
-		void nullTaskTitleThrowsException() throws Exception {
-			doThrow(new IllegalArgumentException("Task title parameter cannot be set to null or blank"))
-					.when(tasksService).createTask(eq(1L), isNull(), eq(false));
-			mock.perform(post(BASE_URL).param("id", "1")
-					.param("done", "false")).andExpect(status().isBadRequest());
-		}
-
-		@Test
-		void blankTaskTitleThrowsException() throws Exception {
-			doThrow(new IllegalArgumentException("Task title parameter cannot be set to null or blank"))
-					.when(tasksService).createTask(eq(1L), eq(""), eq(false));
-			mock.perform(post(BASE_URL).param("id", "1")
-					.param("title", "")
-					.param("done", "false")).andExpect(status().isBadRequest());
+					.param("done", "false"))
+					.andExpect(status().isUnsupportedMediaType());
+			verify(tasksService, never()).createTask(any());
 		}
 	}
 

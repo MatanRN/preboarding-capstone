@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import com.example.tasks.records.Task;
 import com.example.tasks.records.TaskCount;
+import com.example.tasks.records.TaskCreateRequest;
 import com.example.tasks.records.TaskUpdateRequest;
 
 class TasksServiceTests {
@@ -100,9 +101,25 @@ class TasksServiceTests {
 	class createTask {
 
 		@Test
-		void delegatesToMemoryAdd() {
-			tasksService.createTask(1, "Task 1", false);
-			verify(tasksMemory).add(new Task(1, "Task 1", false));
+		void nullDoneDefaultsToFalse() {
+			Task created = new Task(1, "Task 1", false);
+			when(tasksMemory.create("Task 1", false)).thenReturn(created);
+
+			Task result = tasksService.createTask(new TaskCreateRequest("Task 1", null));
+
+			assertEquals(created, result);
+			verify(tasksMemory).create("Task 1", false);
+		}
+
+		@Test
+		void explicitDonePreserved() {
+			Task created = new Task(1, "Task 1", true);
+			when(tasksMemory.create("Task 1", true)).thenReturn(created);
+
+			Task result = tasksService.createTask(new TaskCreateRequest("Task 1", true));
+
+			assertEquals(created, result);
+			verify(tasksMemory).create("Task 1", true);
 		}
 	}
 

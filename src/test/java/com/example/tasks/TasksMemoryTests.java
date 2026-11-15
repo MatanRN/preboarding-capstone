@@ -29,6 +29,38 @@ class TasksMemoryTests {
 	}
 
 	@Nested
+	class create {
+
+		@Test
+		void generatesSequentialIds() {
+			Task first = memory.create("first", false);
+			Task second = memory.create("second", true);
+
+			assertEquals(1L, first.id());
+			assertEquals("first", first.title());
+			assertEquals(false, first.done());
+
+			assertEquals(2L, second.id());
+			assertEquals("second", second.title());
+			assertEquals(true, second.done());
+
+			assertEquals(first, memory.get(1L));
+			assertEquals(second, memory.get(2L));
+			assertEquals(new TaskCount(2, 1), memory.count());
+		}
+
+		@Test
+		void advancesCounterBeyondManuallyAddedIds() {
+			memory.add(new Task(10, "manual", false));
+			Task next = memory.create("after manual", true);
+
+			assertEquals(11L, next.id());
+			assertEquals("after manual", next.title());
+			assertEquals(new TaskCount(2, 1), memory.count());
+		}
+	}
+
+	@Nested
 	class getAll {
 
 		@Test

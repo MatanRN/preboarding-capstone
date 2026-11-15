@@ -20,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.tasks.records.Task;
 import com.example.tasks.records.TaskCount;
+import com.example.tasks.records.TaskCreateRequest;
 import com.example.tasks.records.TaskUpdateRequest;
 
 @RestController
@@ -52,11 +53,11 @@ public class TasksController {
                         "A task corresponding to the provided id doesn't exist"));
     }
 
-    @PostMapping()
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(value = HttpStatus.CREATED)
-    public void createTask(long id, String title, boolean done) {
+    public Task createTask(@Valid @RequestBody TaskCreateRequest request) {
         try {
-            tasksService.createTask(id, title, done);
+            return tasksService.createTask(request);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Task title parameter cannot be set to null or blank");

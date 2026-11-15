@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.tasks.records.Task;
 import com.example.tasks.records.TaskCount;
+import com.example.tasks.records.TaskCreateRequest;
 import com.example.tasks.records.TaskUpdateRequest;
 
 @Service
@@ -33,9 +34,9 @@ public class TasksService {
         return Optional.ofNullable(tasksMemory.get(id));
     }
 
-    public void createTask(long id, String title, boolean done) {
-        Task task = new Task(id, title, done);
-        tasksMemory.add(task);
+    public Task createTask(TaskCreateRequest request) {
+        boolean isDone = Boolean.TRUE.equals(request.done());
+        return tasksMemory.create(request.title(), isDone);
     }
 
     public Optional<Task> updateTask(long id, TaskUpdateRequest request) {

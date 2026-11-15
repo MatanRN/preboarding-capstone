@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.springframework.stereotype.Component;
 
@@ -14,11 +15,13 @@ import com.example.tasks.records.TaskCount;
 public class TasksMemory {
     
     private final Map<Long, Task> tasksMap;
+    private final AtomicLong idCounter;
     // Guarded by "this": only read or written inside synchronized methods.
     private long done;
 
     public TasksMemory() {
         this.tasksMap = new ConcurrentHashMap<>();
+        this.idCounter = new AtomicLong(0);
     }
 
     public Task get(long id) {
@@ -39,7 +42,15 @@ public class TasksMemory {
         return tasks;
     }
 
+    public synchronized Task create(String title, boolean done) {
+        long id = idCounter.incrementAndGet();
+        Task task = new Task(id, title, done);
+        add(task);
+        return task;
+    }
+
     public synchronized Task add(Task t) {
+        idCounter.updateAndGet(curr -> Math.max(curr, t.id()));
         Task prev = tasksMap.put(t.id(), t);
         adjustDone(prev, t);
         return prev;
