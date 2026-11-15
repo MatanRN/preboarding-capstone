@@ -218,14 +218,6 @@ class TasksControllerTests {
 		}
 
 		@Test
-		void serviceIllegalArgumentExceptionReturnsBadRequest() throws Exception {
-			when(tasksService.createTask(any(TaskCreateRequest.class)))
-					.thenThrow(new IllegalArgumentException("Task title parameter cannot be set to null or blank"));
-			mock.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON)
-					.content("{\"title\":\"dummy\"}")).andExpect(status().isBadRequest());
-		}
-
-		@Test
 		void formEncodedBodyReturnsUnsupportedMediaType() throws Exception {
 			mock.perform(post(BASE_URL).contentType(MediaType.APPLICATION_FORM_URLENCODED)
 					.param("title", "dummy")

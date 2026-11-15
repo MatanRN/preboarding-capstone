@@ -56,12 +56,7 @@ public class TasksController {
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(value = HttpStatus.CREATED)
     public Task createTask(@Valid @RequestBody TaskCreateRequest request) {
-        try {
-            return tasksService.createTask(request);
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Task title parameter cannot be set to null or blank");
-        }
+        return tasksService.createTask(request);
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
