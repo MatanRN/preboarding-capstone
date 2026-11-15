@@ -29,6 +29,22 @@ class TasksMemoryTests {
 	}
 
 	@Nested
+	class getAll {
+
+		@Test
+		void returnsAllTasks() {
+			memory.add(new Task(1, "a", false));
+			memory.add(new Task(2, "b", true));
+			assertEquals(2, memory.getAll().size());
+		}
+
+		@Test
+		void returnsEmptyListWhenEmpty() {
+			assertTrue(memory.getAll().isEmpty());
+		}
+	}
+
+	@Nested
 	class getByDone {
 
 		@BeforeEach

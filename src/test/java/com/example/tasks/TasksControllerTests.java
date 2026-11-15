@@ -2,9 +2,16 @@ package com.example.tasks;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -18,15 +25,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.tasks.records.Task;
 import com.example.tasks.records.TaskCount;
+import com.example.tasks.records.TaskUpdateRequest;
 
 @WebMvcTest(TasksController.class)
 class TasksControllerTests {
@@ -37,7 +41,7 @@ class TasksControllerTests {
 	private MockMvc mock;
 
 	@MockitoBean
-	private TasksMemory tasksMemory;
+	private TasksService tasksService;
 
 	@Nested
 	class getAllTasks {
@@ -46,7 +50,7 @@ class TasksControllerTests {
 
 		@Test
 		void returnsAllExistingTasks() throws Exception {
-			when(tasksMemory.getAll()).thenReturn(dummyTaskList);
+			when(tasksService.getAllTasks(null)).thenReturn(dummyTaskList);
 			mock.perform(get(BASE_URL)).andExpect(status().isOk())
 					.andExpect(jsonPath("$[0].id").value(dummyTaskList.get(0).id()))
 					.andExpect(jsonPath("$[0].title").value(dummyTaskList.get(0).title()))
@@ -61,80 +65,98 @@ class TasksControllerTests {
 
 		@Test
 		void returnsNoTasks() throws Exception {
-			when(tasksMemory.getAll()).thenReturn(new ArrayList<>());
+			when(tasksService.getAllTasks(null)).thenReturn(List.of());
 			mock.perform(get(BASE_URL)).andExpect(status().isOk())
 					.andExpect(jsonPath("$").isEmpty());
 		}
 
 		@Test
 		void noDoneParamUsesGetAll() throws Exception {
-			when(tasksMemory.getAll()).thenReturn(dummyTaskList);
+			when(tasksService.getAllTasks(null)).thenReturn(dummyTaskList);
 			mock.perform(get(BASE_URL)).andExpect(status().isOk())
 					.andExpect(jsonPath("$.length()").value(3));
-			verify(tasksMemory).getAll();
-			verify(tasksMemory, never()).getByDone(anyBoolean());
+			verify(tasksService).getAllTasks(null);
 		}
 
 		@Test
 		void doneTrueReturnsOnlyDoneTasks() throws Exception {
-			when(tasksMemory.getByDone(true)).thenReturn(new ArrayList<>(List.of(dummyTaskList.get(2))));
+			when(tasksService.getAllTasks(true)).thenReturn(List.of(dummyTaskList.get(2)));
 			mock.perform(get(BASE_URL).param("done", "true")).andExpect(status().isOk())
 					.andExpect(jsonPath("$.length()").value(1))
 					.andExpect(jsonPath("$[0].id").value(3))
 					.andExpect(jsonPath("$[0].done").value(true));
-			verify(tasksMemory).getByDone(true);
-			verify(tasksMemory, never()).getAll();
+			verify(tasksService).getAllTasks(true);
 		}
 
 		@Test
 		void doneFalseReturnsOnlyUndoneTasks() throws Exception {
-			when(tasksMemory.getByDone(false))
-					.thenReturn(new ArrayList<>(List.of(dummyTaskList.get(0), dummyTaskList.get(1))));
+			when(tasksService.getAllTasks(false))
+					.thenReturn(List.of(dummyTaskList.get(0), dummyTaskList.get(1)));
 			mock.perform(get(BASE_URL).param("done", "false")).andExpect(status().isOk())
 					.andExpect(jsonPath("$.length()").value(2))
 					.andExpect(jsonPath("$[0].done").value(false))
 					.andExpect(jsonPath("$[1].done").value(false));
-			verify(tasksMemory).getByDone(false);
-			verify(tasksMemory, never()).getAll();
+			verify(tasksService).getAllTasks(false);
 		}
 
 		@Test
 		void invalidDoneValueReturnsBadRequest() throws Exception {
 			mock.perform(get(BASE_URL).param("done", "abc")).andExpect(status().isBadRequest());
-			verify(tasksMemory, never()).getAll();
-			verify(tasksMemory, never()).getByDone(anyBoolean());
+			verify(tasksService, never()).getAllTasks(any());
 		}
 
 		@Test
 		void doneValueIsCaseInsensitive() throws Exception {
-			when(tasksMemory.getByDone(true)).thenReturn(new ArrayList<>());
+			when(tasksService.getAllTasks(true)).thenReturn(List.of());
 			mock.perform(get(BASE_URL).param("done", "TRUE")).andExpect(status().isOk());
-			verify(tasksMemory).getByDone(true);
+			verify(tasksService).getAllTasks(true);
 		}
 
 		@Test
 		void springAlternativeBooleanSpellingsAreAccepted() throws Exception {
-			when(tasksMemory.getByDone(anyBoolean())).thenReturn(new ArrayList<>());
+			when(tasksService.getAllTasks(anyBoolean())).thenReturn(List.of());
 			mock.perform(get(BASE_URL).param("done", "yes")).andExpect(status().isOk());
-			verify(tasksMemory).getByDone(true);
+			verify(tasksService).getAllTasks(true);
 			mock.perform(get(BASE_URL).param("done", "0")).andExpect(status().isOk());
-			verify(tasksMemory).getByDone(false);
+			verify(tasksService).getAllTasks(false);
 		}
 
 		@Test
 		void emptyDoneValueFallsBackToGetAll() throws Exception {
-			when(tasksMemory.getAll()).thenReturn(dummyTaskList);
+			when(tasksService.getAllTasks(null)).thenReturn(dummyTaskList);
 			mock.perform(get(BASE_URL).param("done", "")).andExpect(status().isOk())
 					.andExpect(jsonPath("$.length()").value(3));
-			verify(tasksMemory).getAll();
-			verify(tasksMemory, never()).getByDone(anyBoolean());
+			verify(tasksService).getAllTasks(null);
 		}
 
 		@Test
 		void filterWithNoMatchesReturnsEmptyList() throws Exception {
-			when(tasksMemory.getByDone(true)).thenReturn(new ArrayList<>());
+			when(tasksService.getAllTasks(true)).thenReturn(List.of());
 			mock.perform(get(BASE_URL).param("done", "true")).andExpect(status().isOk())
 					.andExpect(jsonPath("$").isEmpty());
+		}
+	}
+
+	@Nested
+	class getCount {
+		String url = BASE_URL + "/count";
+
+		@Test
+		void returnsTotalAndDoneCounts() throws Exception {
+			when(tasksService.getCount()).thenReturn(new TaskCount(5, 2));
+			mock.perform(get(url)).andExpect(status().isOk())
+					.andExpect(jsonPath("$.total").value(5))
+					.andExpect(jsonPath("$.done").value(2));
+			verify(tasksService).getCount();
+		}
+
+		@Test
+		void returnsZeroCountsWhenNoTasks() throws Exception {
+			when(tasksService.getCount()).thenReturn(new TaskCount(0, 0));
+			mock.perform(get(url)).andExpect(status().isOk())
+					.andExpect(jsonPath("$.total").value(0))
+					.andExpect(jsonPath("$.done").value(0));
+			verify(tasksService).getCount();
 		}
 	}
 
@@ -144,13 +166,13 @@ class TasksControllerTests {
 
 		@Test
 		void nonExistingIdThrowsException() throws Exception {
-			when(tasksMemory.get(1)).thenReturn(null);
+			when(tasksService.getTaskById(1)).thenReturn(Optional.empty());
 			mock.perform(get(url)).andExpect(status().isNotFound());
 		}
 
 		@Test
 		void existingIdReturnsTask() throws Exception {
-			when(tasksMemory.get(1)).thenReturn(dummyTask);
+			when(tasksService.getTaskById(1)).thenReturn(Optional.of(dummyTask));
 			mock.perform(get(url)).andExpect(status().isOk())
 					.andExpect(jsonPath("$.id").value(dummyTask.id()))
 					.andExpect(jsonPath("$.title").value(dummyTask.title()))
@@ -165,17 +187,21 @@ class TasksControllerTests {
 			mock.perform(post(BASE_URL).param("id", "1")
 					.param("title", "dummy")
 					.param("done", "false")).andExpect(status().isCreated());
-
+			verify(tasksService).createTask(1L, "dummy", false);
 		}
 
 		@Test
 		void nullTaskTitleThrowsException() throws Exception {
+			doThrow(new IllegalArgumentException("Task title parameter cannot be set to null or blank"))
+					.when(tasksService).createTask(eq(1L), isNull(), eq(false));
 			mock.perform(post(BASE_URL).param("id", "1")
 					.param("done", "false")).andExpect(status().isBadRequest());
 		}
 
 		@Test
 		void blankTaskTitleThrowsException() throws Exception {
+			doThrow(new IllegalArgumentException("Task title parameter cannot be set to null or blank"))
+					.when(tasksService).createTask(eq(1L), eq(""), eq(false));
 			mock.perform(post(BASE_URL).param("id", "1")
 					.param("title", "")
 					.param("done", "false")).andExpect(status().isBadRequest());
@@ -188,19 +214,20 @@ class TasksControllerTests {
 
 		@Test
 		void existingTaskIsUpdated() throws Exception {
-			when(tasksMemory.update(any(Task.class))).thenReturn(dummyTask);
+			when(tasksService.updateTask(eq(1L), any(TaskUpdateRequest.class)))
+					.thenReturn(Optional.of(new Task(1, "new", true)));
 			mock.perform(put(url).contentType(MediaType.APPLICATION_JSON)
 					.content("{\"title\":\"new\",\"done\":true}"))
 					.andExpect(status().isOk())
 					.andExpect(jsonPath("$.id").value(1))
 					.andExpect(jsonPath("$.title").value("new"))
 					.andExpect(jsonPath("$.done").value(true));
-			verify(tasksMemory).update(new Task(1, "new", true));
+			verify(tasksService).updateTask(1L, new TaskUpdateRequest("new", true));
 		}
 
 		@Test
 		void nonExistingTaskReturnsNotFound() throws Exception {
-			when(tasksMemory.update(any(Task.class))).thenReturn(null);
+			when(tasksService.updateTask(eq(1L), any(TaskUpdateRequest.class))).thenReturn(Optional.empty());
 			mock.perform(put(url).contentType(MediaType.APPLICATION_JSON)
 					.content("{\"title\":\"new\",\"done\":true}"))
 					.andExpect(status().isNotFound());
@@ -214,7 +241,7 @@ class TasksControllerTests {
 			mock.perform(put(url).contentType(MediaType.APPLICATION_JSON)
 					.content("{\"title\":\"   \",\"done\":true}"))
 					.andExpect(status().isBadRequest());
-			verify(tasksMemory, never()).update(any());
+			verify(tasksService, never()).updateTask(any(Long.class), any());
 		}
 
 		@Test
@@ -222,7 +249,7 @@ class TasksControllerTests {
 			mock.perform(put(url).contentType(MediaType.APPLICATION_JSON)
 					.content("{\"done\":true}"))
 					.andExpect(status().isBadRequest());
-			verify(tasksMemory, never()).update(any());
+			verify(tasksService, never()).updateTask(any(Long.class), any());
 		}
 
 		@Test
@@ -230,17 +257,18 @@ class TasksControllerTests {
 			mock.perform(put(url).contentType(MediaType.APPLICATION_JSON)
 					.content("{\"title\":\"new\"}"))
 					.andExpect(status().isBadRequest());
-			verify(tasksMemory, never()).update(any());
+			verify(tasksService, never()).updateTask(any(Long.class), any());
 		}
 
 		@Test
 		void pathIdWinsOverBodyId() throws Exception {
-			when(tasksMemory.update(any(Task.class))).thenReturn(dummyTask);
+			when(tasksService.updateTask(eq(1L), any(TaskUpdateRequest.class)))
+					.thenReturn(Optional.of(new Task(1, "new", true)));
 			mock.perform(put(url).contentType(MediaType.APPLICATION_JSON)
 					.content("{\"id\":99,\"title\":\"new\",\"done\":true}"))
 					.andExpect(status().isOk())
 					.andExpect(jsonPath("$.id").value(1));
-			verify(tasksMemory).update(new Task(1, "new", true));
+			verify(tasksService).updateTask(1L, new TaskUpdateRequest("new", true));
 		}
 
 		@Test
@@ -248,7 +276,7 @@ class TasksControllerTests {
 			mock.perform(put(BASE_URL + "/abc").contentType(MediaType.APPLICATION_JSON)
 					.content("{\"title\":\"new\",\"done\":true}"))
 					.andExpect(status().isBadRequest());
-			verify(tasksMemory, never()).update(any());
+			verify(tasksService, never()).updateTask(any(Long.class), any());
 		}
 
 		@Test
@@ -257,7 +285,7 @@ class TasksControllerTests {
 					.param("title", "new")
 					.param("done", "true"))
 					.andExpect(status().isUnsupportedMediaType());
-			verify(tasksMemory, never()).update(any());
+			verify(tasksService, never()).updateTask(any(Long.class), any());
 		}
 	}
 
@@ -267,37 +295,14 @@ class TasksControllerTests {
 
 		@Test
 		void existingTaskCorrectlyRemovedFromMemory() throws Exception {
-			when(tasksMemory.remove(1)).thenReturn(dummyTask);
 			mock.perform(delete(url)).andExpect(status().isNoContent());
+			verify(tasksService).deleteTask(1);
 		}
 
 		@Test
 		void nonExistingTaskDoesNothing() throws Exception {
-			when(tasksMemory.remove(1)).thenReturn(null);
 			mock.perform(delete(url)).andExpect(status().isNoContent());
-		}
-	}
-
-	@Nested
-	class getCount {
-		String url = BASE_URL + "/count";
-
-		@Test
-		void returnsTotalAndDoneCounts() throws Exception {
-			when(tasksMemory.count()).thenReturn(new TaskCount(5, 2));
-			mock.perform(get(url)).andExpect(status().isOk())
-					.andExpect(jsonPath("$.total").value(5))
-					.andExpect(jsonPath("$.done").value(2));
-			verify(tasksMemory).count();
-		}
-
-		@Test
-		void returnsZeroCountsWhenNoTasks() throws Exception {
-			when(tasksMemory.count()).thenReturn(new TaskCount(0, 0));
-			mock.perform(get(url)).andExpect(status().isOk())
-					.andExpect(jsonPath("$.total").value(0))
-					.andExpect(jsonPath("$.done").value(0));
-			verify(tasksMemory).count();
+			verify(tasksService).deleteTask(1);
 		}
 	}
 }

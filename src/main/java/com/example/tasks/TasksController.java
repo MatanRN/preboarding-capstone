@@ -1,6 +1,6 @@
 package com.example.tasks;
 
-import java.util.ArrayList;
+import java.util.List;
 
 import jakarta.validation.Valid;
 
@@ -26,45 +26,37 @@ import com.example.tasks.records.TaskUpdateRequest;
 @RequestMapping("/tasks")
 public class TasksController {
 
-    private final TasksMemory tasksMemory;
+    private final TasksService tasksService;
 
-    public TasksController(TasksMemory tasksMemory) {
-        this.tasksMemory = tasksMemory;
+    public TasksController(TasksService tasksService) {
+        this.tasksService = tasksService;
     }
 
     @GetMapping()
-    public ArrayList<Task> getAllTasks(@RequestParam(required = false) Boolean done) {
-        if (done == null) {
-            return tasksMemory.getAll();
-        }
-        return tasksMemory.getByDone(done);
+    @ResponseStatus(value = HttpStatus.OK)
+    public List<Task> getAllTasks(@RequestParam(required = false) Boolean done) {
+        return tasksService.getAllTasks(done);
     }
 
     @GetMapping("/count")
     @ResponseStatus(value = HttpStatus.OK)
     public TaskCount getCount() {
-        return tasksMemory.count();
+        return tasksService.getCount();
     }
 
     @GetMapping("/{id}")
     @ResponseStatus(value = HttpStatus.OK)
     public Task getTaskById(@PathVariable long id) {
-        Task res = tasksMemory.get(id);
-        if (res == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "A task corresponding to the provided id doesn't exist");
-        } else {
-            return res;
-        }
-
+        return tasksService.getTaskById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "A task corresponding to the provided id doesn't exist"));
     }
 
     @PostMapping()
     @ResponseStatus(value = HttpStatus.CREATED)
     public void createTask(long id, String title, boolean done) {
         try {
-            Task t = new Task(id, title, done);
-            tasksMemory.add(t);
+            tasksService.createTask(id, title, done);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Task title parameter cannot be set to null or blank");
@@ -74,17 +66,14 @@ public class TasksController {
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(value = HttpStatus.OK)
     public Task updateTaskById(@PathVariable long id, @Valid @RequestBody TaskUpdateRequest request) {
-        Task updated = new Task(id, request.title(), request.done());
-        if (tasksMemory.update(updated) == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "A task corresponding to the provided id doesn't exist");
-        }
-        return updated;
+        return tasksService.updateTask(id, request)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "A task corresponding to the provided id doesn't exist"));
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(value = HttpStatus.NO_CONTENT)
     public void deleteTaskById(@PathVariable long id) {
-        tasksMemory.remove(id);
+        tasksService.deleteTask(id);
     }
 }
